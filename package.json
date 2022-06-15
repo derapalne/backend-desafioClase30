@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js --port 6555"
+    "start": "node server.js --port 6555 --modo fork"
   },
   "keywords": [],
   "author": "",

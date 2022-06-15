@@ -34,6 +34,10 @@ import flash from "connect-flash";
 // >>>>>Minimist
 import parseArgs from "minimist";
 import { parse } from "path";
+// >>>>>Cluster
+import cluster from "cluster";
+import os from "os";
+const numCpus = os.cpus().length;
 
 // [ --------- CONFIGURACION --------- ] //
 
@@ -65,7 +69,7 @@ app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use('/api/random', routerRandom);
+app.use("/api/random", routerRandom);
 
 app.use((err, req, res, next) => {
     app.locals.registerMessage = req.flash("registerMessage");
@@ -156,6 +160,7 @@ app.get("/info", (req, res) => {
         path: process.execPath,
         pid: process.pid,
         folder: process.cwd(),
+        numCpus: numCpus,
     });
 });
 
@@ -192,9 +197,29 @@ app.post("/logout", isLogged, (req, res) => {
 
 // [ --------- CORRER EL SERVIDOR --------- ] //
 
-const PORT = parseArgs(process.argv.slice(2)).port || 8080;
+const argumentos = parseArgs(process.argv.slice(2))
 
-httpServer.listen(PORT, () => console.log("Lisstooooo ", PORT));
+const PORT = argumentos.port || 8080;
+
+const modo = argumentos.modo || process.env.SERVER_MODE;
+
+if (modo == "fork") {
+    httpServer.listen(PORT, () => console.log("Lisstooooo ", PORT));
+} else if (modo == "cluster") {
+    if (cluster.isPrimary) {
+        console.log(`Proceso primario corriendo: ${process.pid} 👍👍`);
+        for (let i = 0; i < numCpus; i++) {
+            cluster.fork();
+        }
+        cluster.on("listening", (worker, address) => {
+            console.log(`Proceso secundario ${worker.process.pid} escuchando en puerto ${address.port}`);
+        });
+    } else {
+        httpServer.listen(PORT, () => console.log("Lisstooooo ", PORT));
+    }
+}
+
+
 
 // [ --------- SOCKET --------- ] //
 
